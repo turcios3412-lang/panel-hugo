@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Instalar Bookmarklet — Guardar Contacto</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f8;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.container{background:#fff;border-radius:16px;padding:32px;max-width:560px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.08);}
+h1{font-size:20px;font-weight:600;color:#1a2e2a;margin-bottom:8px;}
+p{font-size:14px;color:#5a7a72;line-height:1.6;margin-bottom:20px;}
+.step{display:flex;gap:12px;margin-bottom:16px;align-items:flex-start;}
+.step-num{width:28px;height:28px;border-radius:50%;background:#1abc9c;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.step-text{font-size:14px;color:#1a2e2a;line-height:1.6;}
+.step-text b{color:#1abc9c;}
+.bookmark-btn{display:inline-block;background:#1abc9c;color:#fff;padding:12px 24px;border-radius:10px;font-size:15px;font-weight:600;text-decoration:none;border:none;cursor:grab;margin:8px 0 20px;}
+.bookmark-btn:hover{background:#15a085;}
+.note{background:#fef9ec;border:1px solid #f9d79a;border-radius:8px;padding:12px 14px;font-size:13px;color:#a06c00;}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📇 Guardar Contacto desde Captura</h1>
+  <p>Arrastra el botón verde a tu barra de favoritos. Luego, cuando estés en Pipedrive, haz clic en el favorito para abrir el panel flotante.</p>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text">Activa tu <b>barra de favoritos</b> en Chrome: <code>Ctrl+Shift+B</code></div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text">Arrastra este botón a tu barra de favoritos:</div>
+  </div>
+
+  <a class="bookmark-btn" id="bookmarklet-link" href="">📇 Guardar Contacto</a>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text">Ve a Pipedrive, haz clic en el favorito, sube la captura y guarda el contacto.</div>
+  </div>
+
+  <div class="note">⚠️ El panel flotante solo funciona en páginas <b>https://</b> — funciona perfecto en Pipedrive.</div>
+</div>
+
+<script>
+// La API key se guarda en el navegador del usuario — no se almacena aquí
+const MAKE_WEBHOOK = 'https://hook.us2.make.com/6f93x33cfkcvdxovcxl2xpmvtis9wrro';
+
+const code = `(function(){
+if(document.getElementById('__gc-panel')) return;
+let CLAUDE=localStorage.getItem('__gc_key')||'';
+if(!CLAUDE){
+  CLAUDE=prompt('Ingresa tu API key de Anthropic (sk-ant-...):');
+  if(!CLAUDE){ return; }
+  localStorage.setItem('__gc_key', CLAUDE);
+}
+const MAKE='${MAKE_WEBHOOK}';
+
+const overlay=document.createElement('div');
+overlay.id='__gc-panel';
+overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:-apple-system,sans-serif;';
+
+overlay.innerHTML=\`
+<div style="background:#fff;border-radius:16px;padding:28px;width:90%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,.2);position:relative;">
+  <button onclick="document.getElementById('__gc-panel').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:#aaa;">✕</button>
+  <div style="font-size:11px;letter-spacing:.1em;color:#1abc9c;text-transform:uppercase;font-weight:600;margin-bottom:4px;">📇 Guardar Contacto</div>
+  <div style="font-size:18px;font-weight:600;color:#1a2e2a;margin-bottom:16px;">Desde captura de pantalla</div>
+  
+  <div id="__gc-drop" tabindex="0" style="border:2px dashed #ddeee8;border-radius:10px;padding:24px;text-align:center;cursor:pointer;margin-bottom:14px;transition:all .2s;" onclick="document.getElementById('__gc-file').click()" ondragover="event.preventDefault();this.style.borderColor='#1abc9c'" ondrop="event.preventDefault();handleFile(event.dataTransfer.files[0])">
+    <div style="font-size:28px;margin-bottom:6px;">🖼️</div>
+    <div style="font-size:13px;color:#5a7a72;">Pega con <b>Ctrl+V</b> · arrastra · o haz clic</div>
+  </div>
+  <input type="file" id="__gc-file" accept="image/*" style="display:none" onchange="handleFile(this.files[0])">
+  
+  <img id="__gc-preview" style="display:none;width:100%;border-radius:8px;margin-bottom:14px;max-height:200px;object-fit:contain;border:1px solid #ddeee8;">
+  
+  <div id="__gc-fields" style="display:none;flex-direction:column;gap:10px;margin-bottom:14px;">
+    <div>
+      <div style="font-size:10px;letter-spacing:.08em;color:#9ab8b0;text-transform:uppercase;margin-bottom:4px;">Nombre</div>
+      <input id="__gc-name" type="text" style="width:100%;border:1px solid #ddeee8;border-radius:8px;padding:10px 12px;font-size:14px;outline:none;color:#1a2e2a;">
+    </div>
+    <div>
+      <div style="font-size:10px;letter-spacing:.08em;color:#9ab8b0;text-transform:uppercase;margin-bottom:4px;">Teléfono</div>
+      <input id="__gc-phone" type="text" style="width:100%;border:1px solid #ddeee8;border-radius:8px;padding:10px 12px;font-size:14px;outline:none;color:#1a2e2a;">
+    </div>
+    <div>
+      <div style="font-size:10px;letter-spacing:.08em;color:#9ab8b0;text-transform:uppercase;margin-bottom:4px;">Apellido (proyecto)</div>
+      <input id="__gc-last" type="text" value="cu alm" style="width:100%;border:1px solid #ddeee8;border-radius:8px;padding:10px 12px;font-size:14px;outline:none;color:#1a2e2a;">
+    </div>
+  </div>
+
+  <div id="__gc-status" style="font-size:13px;color:#9ab8b0;text-align:center;margin-bottom:10px;min-height:18px;"></div>
+  
+  <button id="__gc-btn" onclick="guardar()" style="display:none;width:100%;background:#1abc9c;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;">💾 Guardar en Google Contacts</button>
+</div>
+\`;
+
+document.body.appendChild(overlay);
+
+// Escuchar Ctrl+V en cualquier parte de la página
+function handlePaste(e){
+  const items = (e.clipboardData||e.originalEvent?.clipboardData)?.items;
+  if(!items) return;
+  for(const item of items){
+    if(item.type.startsWith('image')){
+      e.preventDefault();
+      handleFile(item.getAsFile());
+      return;
+    }
+  }
+}
+document.addEventListener('paste', handlePaste);
+// Limpiar listener al cerrar
+overlay.querySelector('button').addEventListener('click', ()=>{
+  document.removeEventListener('paste', handlePaste);
+});
+
+function setStatus(msg, color){
+  document.getElementById('__gc-status').style.color = color||'#9ab8b0';
+  document.getElementById('__gc-status').textContent = msg;
+}
+
+async function handleFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const b64 = e.target.result.split(',')[1];
+    const prev = document.getElementById('__gc-preview');
+    prev.src = e.target.result; prev.style.display='block';
+    setStatus('Analizando imagen con IA…', '#f39c12');
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':CLAUDE,'anthropic-version':'2023-06-01'},
+        body: JSON.stringify({
+          model:'claude-haiku-4-5-20251001',
+          max_tokens:300,
+          messages:[{role:'user',content:[
+            {type:'image',source:{type:'base64',media_type:file.type,data:b64}},
+            {type:'text',text:'Extrae de esta captura de Pipedrive el nombre completo de la persona y su número de teléfono. Devuelve SOLO JSON sin backticks: {"nombre":"...","telefono":"..."}. Si no encuentras algún dato, deja el campo vacío.'}
+          ]}]
+        })
+      });
+      const data = await res.json();
+      const raw = data.content?.[0]?.text||'';
+      let parsed; try{parsed=JSON.parse(raw.replace(/\`\`\`json|\`\`\`/g,'').trim());}catch{parsed=null;}
+      if(parsed){
+        document.getElementById('__gc-name').value = parsed.nombre||'';
+        document.getElementById('__gc-phone').value = parsed.telefono||'';
+        document.getElementById('__gc-fields').style.display='flex';
+        document.getElementById('__gc-btn').style.display='block';
+        setStatus('✓ Datos extraídos — verifica y guarda', '#1abc9c');
+      } else {
+        document.getElementById('__gc-fields').style.display='flex';
+        document.getElementById('__gc-btn').style.display='block';
+        setStatus('No se detectaron datos — escríbelos manualmente', '#f39c12');
+      }
+    } catch(err){
+      document.getElementById('__gc-fields').style.display='flex';
+      document.getElementById('__gc-btn').style.display='block';
+      setStatus('Error al analizar — escribe los datos manualmente', '#e74c3c');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function guardar(){
+  const name = document.getElementById('__gc-name').value.trim();
+  const phone = document.getElementById('__gc-phone').value.trim();
+  const last = document.getElementById('__gc-last').value.trim();
+  if(!name||!phone){ setStatus('Completa nombre y teléfono', '#e74c3c'); return; }
+  setStatus('Guardando…', '#f39c12');
+  fetch(MAKE, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({result:'save-contact', lead_name:name, phone:phone.replace(/\\s/g,''), last_name:last, timestamp:new Date().toISOString()})
+  }).catch(()=>{});
+  setStatus('✓ Contacto guardado en Google Contacts', '#1abc9c');
+  document.getElementById('__gc-btn').textContent = '✓ Guardado';
+  document.getElementById('__gc-btn').style.background = '#15a085';
+  setTimeout(()=>document.getElementById('__gc-panel').remove(), 1500);
+}
+})();`;
+
+document.getElementById('bookmarklet-link').href = 'javascript:' + encodeURIComponent(code);
+</script>
+</body>
+</html>
